@@ -7,6 +7,7 @@ body {
 
 div#padding {
     max-width: 1300px;
+    margin: auto;
 }
 
 div#header {
@@ -17,13 +18,13 @@ div#header {
 div#content {
     display: flex;
     align-items: stretch;
-    justify-content: space-around;
+    justify-content: space-between;
 }
 
 div.column {
     border: solid #aaa;
     border-width: 1px;
-    width: 500px;
+    width: 600px;
     padding: 5px;
     background-color: #102f40;
     margin: 0 5px 50px 5px;
