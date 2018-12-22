@@ -1,5 +1,18 @@
-<!DOCTYPE html>
-test
-{% for x in a %}
-    <p>{{ x }}</p>
-{% endfor %}
+{% extends "base.html" %}
+
+{% block content %}
+  <div id="content">
+    <div class="column">
+      test
+      {% for x in a %}
+        <p>{{ x }}</p>
+      {% endfor %}
+    </div>
+    <div class="column">
+      test
+      {% for x in a %}
+        <p>{{ x }}</p>
+      {% endfor %}
+    </div>
+  </div>
+{% endblock content %}

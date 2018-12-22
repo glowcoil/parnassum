@@ -1,0 +1,39 @@
+body {
+    background-color: #0a1a24;
+    font-family: "Lato", sans-serif;
+    font-size: 13px;
+    color: #eee;
+}
+
+div#padding {
+    max-width: 1300px;
+}
+
+div#header {
+    margin: 75px auto;
+    text-align: center;
+}
+
+div#content {
+    display: flex;
+    align-items: stretch;
+    justify-content: space-around;
+}
+
+div.column {
+    border: solid #aaa;
+    border-width: 1px;
+    width: 500px;
+    padding: 5px;
+    background-color: #102f40;
+    margin: 0 5px 50px 5px;
+}
+
+@media screen and (max-width:480px) {
+    div#content { flex-wrap: wrap;  }
+    div.column { flex-basis: 100%; }
+}
+
+p {
+    margin: 0;
+}
