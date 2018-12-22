@@ -13,7 +13,7 @@ use std::sync::Mutex;
 
 use rouille::{Request, Response};
 use tera::Context;
-use rusqlite::{Connection, NO_PARAMS};
+use rusqlite::{Connection, NO_PARAMS, OptionalExtension};
 
 use ring::rand::SecureRandom;
 
@@ -67,20 +67,21 @@ fn main() {
                 let input = input.unwrap();
 
                 if input.username.is_empty() {
-                    return error_register(&tera, "username is empty");
+                    return error_message(&tera, "register.html", "username is empty");
                 }
                 if input.password.is_empty() || input.confirm_password.is_empty() {
-                    return error_register(&tera, "password is empty");
+                    return error_message(&tera, "register.html", "password is empty");
                 }
                 if input.confirm_password != input.password {
-                    return error_register(&tera, "passwords do not match");
+                    return error_message(&tera, "register.html", "passwords do not match");
                 }
                 {
-                    use rusqlite::OptionalExtension;
                     let db = db.lock().unwrap();
-                    let existing: Option<String> = db.query_row("SELECT name FROM users WHERE name=(?)", &[&input.username], |row| row.get(0)).optional().unwrap();
+                    let existing: Option<String> = db.query_row(
+                        "SELECT name FROM users WHERE name=(?)", &[&input.username],
+                        |row| row.get(0)).optional().unwrap();
                     if existing.is_some() {
-                        return error_register(&tera, "username already exists");
+                        return error_message(&tera, "register.html", "username already exists");
                     }
 
                     let mut salt = [0u8; 16];
@@ -92,6 +93,43 @@ fn main() {
                 }
 
                 Response::html(tera.render("register.html", &Context::new()).unwrap())
+            },
+
+            (GET) (/login) => {
+                Response::html(tera.render("login.html", &Context::new()).unwrap())
+            },
+
+            (POST) (/login) => {
+                let input = post_input!(request, {
+                    username: String,
+                    password: String,
+                });
+
+                if input.is_err() {
+                    return error(&tera, "400 bad request", 400);
+                }
+                let input = input.unwrap();
+
+                if input.username.is_empty() {
+                    return error_message(&tera, "login.html", "username is empty");
+                }
+                if input.password.is_empty() {
+                    return error_message(&tera, "login.html", "password is empty");
+                }
+                {
+                    let db = db.lock().unwrap();
+                    let user: Option<(String, String)> = db.query_row(
+                        "SELECT password, salt FROM users WHERE name = (?)",
+                        &[&input.username],
+                        |row| (row.get(0), row.get(1))).optional().unwrap();
+
+                    if user.is_none() {
+                        return error_message(&tera, "login.html", "user not found");
+                    }
+                    let (password, salt) = user.unwrap();
+
+                    error_message(&tera, "login.html", &password::verify_password(&input.password, &base64::decode(&salt).unwrap(), &base64::decode(&password).unwrap()).to_string())
+                }
             },
 
             _ => {
@@ -108,8 +146,8 @@ fn error(tera: &tera::Tera, error: &str, status_code: u16) -> Response {
         .with_status_code(status_code)
 }
 
-fn error_register(tera: &tera::Tera, message: &str) -> Response {
+fn error_message(tera: &tera::Tera, template: &str, message: &str) -> Response {
     let mut context = Context::new();
     context.insert("message", message);
-    Response::html(tera.render("register.html", &context).unwrap())
+    Response::html(tera.render(template, &context).unwrap())
 }

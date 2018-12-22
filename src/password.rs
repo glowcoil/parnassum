@@ -9,31 +9,19 @@ const DB_SALT_COMPONENT: [u8; 16] = [
 ];
 
 pub fn hash_password(password: &str, user_salt: &[u8], hashed: &mut [u8]) {
-    let mut salt = Vec::with_capacity(DB_SALT_COMPONENT.len() + user_salt.len());
-    salt.extend(DB_SALT_COMPONENT.as_ref());
-    salt.extend(user_salt);
+    let salt = salt(user_salt);
     pbkdf2::derive(DIGEST_ALG, PBKDF2_ITERATIONS, &salt, password.as_bytes(), hashed);
 }
 
-// pub fn verify_password(&self, username: &str, attempted_password: &str)
-//                        -> Result<(), Error> {
-//     match self.storage.get(username) {
-//        Some(actual_password) => {
-//            let salt = self.salt(username);
-//            pbkdf2::verify(DIGEST_ALG, PBKDF2_ITERATIONS, &salt,
-//                           attempted_password.as_bytes(),
-//                           actual_password)
-//                 .map_err(|_| Error::WrongUsernameOrPassword)
-//        },
+pub fn verify_password(attempted_password: &str, user_salt: &[u8], hashed: &[u8]) -> bool {
+    let salt = salt(user_salt);
+    pbkdf2::verify(DIGEST_ALG, PBKDF2_ITERATIONS, &salt, attempted_password.as_bytes(), hashed)
+        .is_ok()
+}
 
-//        None => Err(Error::WrongUsernameOrPassword)
-//     }
-// }
-
-// fn salt(&self, username: &str) -> Vec<u8> {
-//     let mut salt = Vec::with_capacity(DB_SALT_COMPONENT.len() +
-//                                       username.as_bytes().len());
-//     salt.extend(DB_SALT_COMPONENT.as_ref());
-//     salt.extend(username.as_bytes());
-//     salt
-// }
+pub fn salt(user_salt: &[u8]) -> Vec<u8> {
+    let mut salt = Vec::with_capacity(DB_SALT_COMPONENT.len() + user_salt.len());
+    salt.extend(DB_SALT_COMPONENT.as_ref());
+    salt.extend(user_salt);
+    salt
+}
