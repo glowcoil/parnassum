@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <div id="content">
+    <div class="column">
+      <b>register</b>
+      {% if message %}<div id="message">{{ message }}</div>{% endif %}
+      <form action="/register" method="post">
+        <table class="form">
+          <tr><td class="label">username</td><td class="input"><input type="text" name="username"/></td></tr>
+          <tr><td class="label">password</td><td class="input"><input type="password" name="password"/></td></tr>
+          <tr><td class="label">confirm password</td><td class="input"><input type="password" name="confirm_password"/></td></tr>
+          <tr><td colspan="2" class="submit"><button type="submit">submit</button></td></tr>
+        </table>
+      </form>
+    </div>
+  </div>
+{% endblock content %}

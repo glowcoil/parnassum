@@ -5,8 +5,43 @@ body {
     color: #eee;
 }
 
+a {
+    color: #9df;
+    text-decoration: none;
+}
+
+a:hover {
+    color: #dff;
+}
+
+button {
+    background-color: #0a1a24;
+    border-width: 0;
+    font-family: "Lato", sans-serif;
+    font-size: 12px;
+    color: #eee;
+}
+
+input[type="text"], input[type="password"] {
+    border: 1px solid #0a1a24;
+    background-color: #204056;
+}
+
+input[type="text"]:hover, input[type="text"]:focus, input[type="password"]:hover, input[type="password"]:focus {
+    background-color: #305060;
+}
+
+div#user {
+    text-align: right;
+    position: absolute;
+    right: 0;
+    top: 0;
+    padding: 8px;
+}
+
 div#padding {
-    max-width: 1300px;
+    max-width: 1400px;
+    min-width: 0;
     margin: auto;
 }
 
@@ -18,7 +53,7 @@ div#header {
 div#content {
     display: flex;
     align-items: stretch;
-    justify-content: space-between;
+    justify-content: space-around;
 }
 
 div.column {
@@ -37,4 +72,16 @@ div.column {
 
 p {
     margin: 0;
+}
+
+table.form {}
+
+td.label {}
+
+td.input {
+    text-align: left;
+}
+
+td.submit {
+    text-align: center;
 }

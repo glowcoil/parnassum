@@ -7,3 +7,5 @@ authors = ["Micah Johnston <micah@glowcoil.com>"]
 rouille = "3.0.0"
 tera = "0.11.20"
 rusqlite = "0.16.0"
+ring = "0.13.5"
+base64 = "0.10.0"
