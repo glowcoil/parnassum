@@ -7,6 +7,7 @@ extern crate tera;
 extern crate rusqlite;
 extern crate ring;
 extern crate base64;
+extern crate serde_derive;
 
 use std::path::Path;
 use std::sync::Mutex;
@@ -14,8 +15,16 @@ use std::sync::Mutex;
 use rouille::{Request, Response};
 use tera::Context;
 use rusqlite::{Connection, NO_PARAMS, OptionalExtension};
-
+use rusqlite::types::ToSql;
 use ring::rand::SecureRandom;
+use serde_derive::Serialize;
+
+#[derive(Serialize)]
+struct User {
+    id: u32,
+    name: String,
+    token: String,
+}
 
 fn main() {
     let mut tera = compile_templates!("src/template/**/*");
@@ -33,6 +42,11 @@ fn main() {
 
         router! { request,
             (GET) (/) => {
+                let mut context = Context::new();
+                if let Some(user) = verify_session(&db, &request) {
+                    context.insert("user", &user);
+                }
+
                 let values = {
                     let db = db.lock().unwrap();
 
@@ -45,16 +59,22 @@ fn main() {
                     values
                 };
 
-                let mut context = Context::new();
                 context.insert("a", &values);
                 Response::html(tera.render("index.html", &context).unwrap())
             },
 
             (GET) (/register) => {
+                if verify_session(&db, &request).is_some() {
+                    return Response::redirect_303("/");
+                }
                 Response::html(tera.render("register.html", &Context::new()).unwrap())
             },
 
             (POST) (/register) => {
+                if verify_session(&db, &request).is_some() {
+                    return Response::redirect_303("/");
+                }
+
                 let input = post_input!(request, {
                     username: String,
                     password: String,
@@ -96,10 +116,18 @@ fn main() {
             },
 
             (GET) (/login) => {
+                if verify_session(&db, &request).is_some() {
+                    return Response::redirect_303("/");
+                }
+
                 Response::html(tera.render("login.html", &Context::new()).unwrap())
             },
 
             (POST) (/login) => {
+                if verify_session(&db, &request).is_some() {
+                    return Response::redirect_303("/");
+                }
+
                 let input = post_input!(request, {
                     username: String,
                     password: String,
@@ -117,18 +145,34 @@ fn main() {
                     return error_message(&tera, "login.html", "password is empty");
                 }
                 {
-                    let db = db.lock().unwrap();
-                    let user: Option<(String, String)> = db.query_row(
-                        "SELECT password, salt FROM users WHERE name = (?)",
-                        &[&input.username],
-                        |row| (row.get(0), row.get(1))).optional().unwrap();
+                    let user: Option<(u32, String, String)> = {
+                        let db = db.lock().unwrap();
+                        db.query_row(
+                            "SELECT id, password, salt FROM users WHERE name = (?)",
+                            &[&input.username],
+                            |row| (row.get(0), row.get(1), row.get(2))).optional().unwrap()
+                    };
 
                     if user.is_none() {
                         return error_message(&tera, "login.html", "user not found");
                     }
-                    let (password, salt) = user.unwrap();
+                    let (id, password, salt) = user.unwrap();
 
-                    error_message(&tera, "login.html", &password::verify_password(&input.password, &base64::decode(&salt).unwrap(), &base64::decode(&password).unwrap()).to_string())
+                    if password::verify_password(&input.password, &base64::decode(&salt).unwrap(), &base64::decode(&password).unwrap()) {
+                        let mut token = [0u8; 32];
+                        rand.fill(&mut token);
+                        let token_base64 = base64::encode(&token);
+
+                        {
+                            let db = db.lock().unwrap();
+                            let mut stmt = db.prepare("INSERT INTO sessions (user_id, token, created) VALUES ((?), (?), datetime('now'))").unwrap();
+                            stmt.execute(&[&id as &ToSql, &token_base64]).unwrap();
+                        }
+
+                        Response::redirect_303("/").with_additional_header("Set-Cookie", "session=".to_owned() + &token_base64)
+                    } else {
+                        error_message(&tera, "login.html", "incorrect password")
+                    }
                 }
             },
 
@@ -137,6 +181,18 @@ fn main() {
             },
         }
     });
+}
+
+fn verify_session(db: &Mutex<Connection>, request: &Request) -> Option<User> {
+    if let Some((_, token)) = rouille::input::cookies(request).find(|&(name, _)| name == "session") {
+        let db = db.lock().unwrap();
+        db.query_row(
+            "SELECT users.id, users.name FROM sessions INNER JOIN users ON sessions.user_id = users.id WHERE token = (?)",
+            &[&token],
+            |row| User { id: row.get(0), name: row.get(1), token: token.to_string() }).optional().unwrap()
+    } else {
+        None
+    }
 }
 
 fn error(tera: &tera::Tera, error: &str, status_code: u16) -> Response {

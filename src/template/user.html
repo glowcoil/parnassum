@@ -1,4 +1,8 @@
 <div id="user">
-  <a href="/register">register</a><br/>
-  <a href="/login">login</a>
+  {% if user %}
+    {{ user.name }}
+  {% else %}
+    <a href="/register">register</a><br/>
+    <a href="/login">login</a>
+  {% endif %}
 </div>
