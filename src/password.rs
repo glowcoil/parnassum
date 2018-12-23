@@ -2,7 +2,7 @@ use ring::{digest, pbkdf2};
 
 static DIGEST_ALG: &'static digest::Algorithm = &digest::SHA256;
 pub const CREDENTIAL_LEN: usize = digest::SHA256_OUTPUT_LEN;
-const PBKDF2_ITERATIONS: u32 = 100_000;
+const PBKDF2_ITERATIONS: u32 = 1000;
 const DB_SALT_COMPONENT: [u8; 16] = [
     0x0f, 0x3f, 0xca, 0xda, 0x4f, 0xde, 0xe0, 0xbd,
     0x65, 0x0d, 0xcc, 0xf1, 0xb1, 0xb7, 0xc5, 0x05,
