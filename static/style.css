@@ -85,3 +85,15 @@ td.input {
 td.submit {
     text-align: center;
 }
+
+button.link-button {
+    color: #9df;
+    font-size: 13px;
+    display: inline;
+    padding: 0;
+    cursor: pointer;
+}
+
+button.link-button:hover {
+    color: #dff;
+}

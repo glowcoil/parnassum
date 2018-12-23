@@ -176,6 +176,15 @@ fn main() {
                 }
             },
 
+            (POST) (/logout) => {
+                if let Some(user) = verify_session(&db, &request) {
+                    let db = db.lock().unwrap();
+                    let mut stmt = db.prepare("DELETE FROM sessions WHERE token = (?)").unwrap();
+                    stmt.execute(&[&user.token]).unwrap();
+                }
+                Response::redirect_303("/").with_additional_header("Set-Cookie", "session=")
+            },
+
             _ => {
                 return error(&tera, "404", 404);
             },
