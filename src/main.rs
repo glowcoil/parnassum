@@ -133,6 +133,7 @@ fn main() {
                 let input = post_input!(request, {
                     username: String,
                     password: String,
+                    remember: bool,
                 });
 
                 if input.is_err() {
@@ -171,7 +172,11 @@ fn main() {
                             stmt.execute(&[&id as &ToSql, &token_base64]).unwrap();
                         }
 
-                        Response::redirect_303("/").with_additional_header("Set-Cookie", "session=".to_owned() + &token_base64)
+                        if input.remember {
+                            Response::redirect_303("/").with_additional_header("Set-Cookie", format!("session={}; Max-Age=2147483648; Path=/;", &token_base64))
+                        } else {
+                            Response::redirect_303("/").with_additional_header("Set-Cookie", format!("session={}; Path=/;", &token_base64))
+                        }
                     } else {
                         error_message(&tera, "login.html", "incorrect password")
                     }
@@ -184,7 +189,7 @@ fn main() {
                     let mut stmt = db.prepare("DELETE FROM sessions WHERE token = (?)").unwrap();
                     stmt.execute(&[&user.token]).unwrap();
                 }
-                Response::redirect_303("/").with_additional_header("Set-Cookie", "session=")
+                Response::redirect_303("/").with_additional_header("Set-Cookie", "session=; Max-Age=0;")
             },
 
             _ => {
