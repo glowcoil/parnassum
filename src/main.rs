@@ -110,6 +110,8 @@ fn main() {
                     password::hash_password(&input.password, &salt, &mut hashed);
                     let mut stmt = db.prepare("INSERT INTO users (name, password, salt, created) VALUES ((?), (?), (?), datetime('now'))").unwrap();
                     stmt.execute(&[&input.username, &base64::encode(&hashed), &base64::encode(&salt)]).unwrap();
+
+                    return Response::redirect_303("/login");
                 }
 
                 Response::html(tera.render("register.html", &Context::new()).unwrap())
