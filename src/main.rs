@@ -26,6 +26,12 @@ struct User {
     token: String,
 }
 
+#[derive(Serialize)]
+struct Worklog {
+    user: String,
+    text: String,
+}
+
 fn main() {
     let mut tera = compile_templates!("src/template/**/*");
     let db = Mutex::new(Connection::open(Path::new("parnassum.db")).unwrap());
@@ -47,20 +53,64 @@ fn main() {
                     context.insert("user", &user);
                 }
 
-                let values = {
+                let users = {
+                    let db = db.lock().unwrap();
+
+                    let mut stmt = db.prepare("SELECT name FROM users").unwrap();
+                    let mut rows = stmt.query_map(NO_PARAMS, |row| row.get(0)).unwrap();
+                    let mut users: Vec<String> = Vec::new();
+                    for row in rows {
+                        users.push(row.unwrap());
+                    }
+                    users
+                };
+
+                let worklogs = {
                     let db = db.lock().unwrap();
 
                     let mut stmt = db.prepare("SELECT name, text FROM worklogs INNER JOIN users ON worklogs.user_id = users.id").unwrap();
-                    let mut rows = stmt.query_map(NO_PARAMS, |row| (row.get(0), row.get(1))).unwrap();
-                    let mut values: Vec<(String, String)> = Vec::new();
+                    let mut rows = stmt.query_map(NO_PARAMS, |row| Worklog { user: row.get(0), text: row.get(1) }).unwrap();
+                    let mut worklogs: Vec<Worklog> = Vec::new();
                     for row in rows {
-                        values.push(row.unwrap());
+                        worklogs.push(row.unwrap());
                     }
-                    values
+                    worklogs
                 };
 
-                context.insert("a", &values);
+                context.insert("users", &users);
+                context.insert("worklogs", &worklogs);
                 Response::html(tera.render("index.html", &context).unwrap())
+            },
+
+            (POST) (/worklog) => {
+                let user = verify_session(&db, &request);
+
+                if user.is_none() {
+                    return Response::redirect_303("/");
+                }
+                let user = user.unwrap();
+
+                let input = post_input!(request, {
+                    worklog: String,
+                    link: String,
+                });
+
+                if input.is_err() {
+                    return error(&tera, "400 bad request", 400);
+                }
+                let input = input.unwrap();
+
+                let link = if input.link.is_empty() {
+                    None
+                } else {
+                    Some(input.link)
+                };
+
+                let db = db.lock().unwrap();
+                let mut stmt = db.prepare("INSERT INTO worklogs (user_id, text, link, created) VALUES ((?), (?), (?), datetime('now'))").unwrap();
+                stmt.execute(&[&user.id as &ToSql, &input.worklog, &link]).unwrap();
+
+                Response::redirect_303("/")
             },
 
             (GET) (/register) => {
@@ -95,26 +145,23 @@ fn main() {
                 if input.confirm_password != input.password {
                     return error_message(&tera, "register.html", "passwords do not match");
                 }
-                {
-                    let db = db.lock().unwrap();
-                    let existing: Option<String> = db.query_row(
-                        "SELECT name FROM users WHERE name=(?)", &[&input.username],
-                        |row| row.get(0)).optional().unwrap();
-                    if existing.is_some() {
-                        return error_message(&tera, "register.html", "username already exists");
-                    }
 
-                    let mut salt = [0u8; 16];
-                    rand.fill(&mut salt);
-                    let mut hashed = [0u8; password::CREDENTIAL_LEN];
-                    password::hash_password(&input.password, &salt, &mut hashed);
-                    let mut stmt = db.prepare("INSERT INTO users (name, password, salt, created) VALUES ((?), (?), (?), datetime('now'))").unwrap();
-                    stmt.execute(&[&input.username, &base64::encode(&hashed), &base64::encode(&salt)]).unwrap();
-
-                    return Response::redirect_303("/login");
+                let db = db.lock().unwrap();
+                let existing: Option<String> = db.query_row(
+                    "SELECT name FROM users WHERE name=(?)", &[&input.username],
+                    |row| row.get(0)).optional().unwrap();
+                if existing.is_some() {
+                    return error_message(&tera, "register.html", "username already exists");
                 }
 
-                Response::html(tera.render("register.html", &Context::new()).unwrap())
+                let mut salt = [0u8; 16];
+                rand.fill(&mut salt);
+                let mut hashed = [0u8; password::CREDENTIAL_LEN];
+                password::hash_password(&input.password, &salt, &mut hashed);
+                let mut stmt = db.prepare("INSERT INTO users (name, password, salt, created) VALUES ((?), (?), (?), datetime('now'))").unwrap();
+                stmt.execute(&[&input.username, &base64::encode(&hashed), &base64::encode(&salt)]).unwrap();
+
+                Response::redirect_303("/login")
             },
 
             (GET) (/login) => {

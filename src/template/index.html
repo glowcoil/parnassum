@@ -5,15 +5,30 @@
 
   <div id="content">
     <div class="column">
-      test
-      {% for x in a %}
-        <p>{{ x }}</p>
+      {% for user in users %}
+        <p>{{ user }}</p>
       {% endfor %}
     </div>
     <div class="column">
-      test
-      {% for x in a %}
-        <p>{{ x }}</p>
+      {% if user %}
+        <div class="worklog">
+          <form class="worklog" action="/worklog" method="post">
+            <table class="worklog">
+              <tr>
+                <td class="shrink">{{ user.name }}:</td>
+                <td class="expand"><input type="text" class="worklog" name="worklog"/></td>
+                <td class="shrink" rowspan="2"><button type="submit" class="post">post</button></td>
+              </tr>
+              <tr>
+                <td class="shrink link">(link)</td>
+                <td class="expand"><input type="text" class="link" name="link"/></td>
+              </tr>
+            </table>
+          </form>
+        </div>
+      {% endif %}
+      {% for log in worklogs %}
+        <p>{{ log.user }}: {{ log.text }}</p>
       {% endfor %}
     </div>
   </div>
