@@ -9,6 +9,7 @@ extern crate ring;
 extern crate base64;
 extern crate serde_derive;
 
+use std::error::Error;
 use std::path::Path;
 use std::sync::Mutex;
 
@@ -32,29 +33,31 @@ struct Worklog {
     text: String,
 }
 
-fn main() {
-    let tera = compile_templates!("src/template/**/*");
-    let db = Mutex::new(Connection::open(Path::new("parnassum.db")).unwrap());
-    let rand = ring::rand::SystemRandom::new();
+struct App {
+    tera: tera::Tera,
+    db: Mutex<Connection>,
+    rand: ring::rand::SystemRandom,
+}
 
-    rouille::start_server("0.0.0.0:80", move |request| {
-        /* serve static files from static/ */
-        if let Some(request) = request.remove_prefix("/static") {
-            let response = rouille::match_assets(&request, "static");
-            if response.is_success() {
-                return response;
-            }
+impl App {
+    fn new() -> App {
+        App {
+            tera: compile_templates!("src/template/**/*"),
+            db: Mutex::new(Connection::open(Path::new("parnassum.db")).unwrap()),
+            rand: ring::rand::SystemRandom::new(),
         }
+    }
 
+    fn handle_request(&self, request: &Request) -> Result<Response, Box<dyn Error>> {
         router! { request,
             (GET) (/) => {
                 let mut context = Context::new();
-                if let Some(user) = verify_session(&db, &request) {
+                if let Some(user) = self.verify_session(&request) {
                     context.insert("user", &user);
                 }
 
                 let users = {
-                    let db = db.lock().unwrap();
+                    let db = self.db.lock().unwrap();
 
                     let mut stmt = db.prepare("SELECT name FROM users").unwrap();
                     let mut rows = stmt.query_map(NO_PARAMS, |row| row.get(0)).unwrap();
@@ -66,7 +69,7 @@ fn main() {
                 };
 
                 let worklogs = {
-                    let db = db.lock().unwrap();
+                    let db = self.db.lock().unwrap();
 
                     let mut stmt = db.prepare("SELECT name, text FROM worklogs INNER JOIN users ON worklogs.user_id = users.id").unwrap();
                     let mut rows = stmt.query_map(NO_PARAMS, |row| Worklog { user: row.get(0), text: row.get(1) }).unwrap();
@@ -79,14 +82,14 @@ fn main() {
 
                 context.insert("users", &users);
                 context.insert("worklogs", &worklogs);
-                Response::html(tera.render("index.html", &context).unwrap())
+                Ok(Response::html(self.tera.render("index.html", &context).unwrap()))
             },
 
             (POST) (/worklog) => {
-                let user = verify_session(&db, &request);
+                let user = self.verify_session(&request);
 
                 if user.is_none() {
-                    return Response::redirect_303("/");
+                    return Ok(Response::redirect_303("/"));
                 }
                 let user = user.unwrap();
 
@@ -96,7 +99,7 @@ fn main() {
                 });
 
                 if input.is_err() {
-                    return error(&tera, "400 bad request", 400);
+                    return Ok(self.error("400 bad request", 400));
                 }
                 let input = input.unwrap();
 
@@ -106,23 +109,23 @@ fn main() {
                     Some(input.link)
                 };
 
-                let db = db.lock().unwrap();
+                let db = self.db.lock().unwrap();
                 let mut stmt = db.prepare("INSERT INTO worklogs (user_id, text, link, created) VALUES ((?), (?), (?), datetime('now'))").unwrap();
                 stmt.execute(&[&user.id as &ToSql, &input.worklog, &link]).unwrap();
 
-                Response::redirect_303("/")
+                Ok(Response::redirect_303("/"))
             },
 
             (GET) (/register) => {
-                if verify_session(&db, &request).is_some() {
-                    return Response::redirect_303("/");
+                if self.verify_session(&request).is_some() {
+                    return Ok(Response::redirect_303("/"));
                 }
-                Response::html(tera.render("register.html", &Context::new()).unwrap())
+                Ok(Response::html(self.tera.render("register.html", &Context::new()).unwrap()))
             },
 
             (POST) (/register) => {
-                if verify_session(&db, &request).is_some() {
-                    return Response::redirect_303("/");
+                if self.verify_session(&request).is_some() {
+                    return Ok(Response::redirect_303("/"));
                 }
 
                 let input = post_input!(request, {
@@ -132,49 +135,49 @@ fn main() {
                 });
 
                 if input.is_err() {
-                    return error(&tera, "400 bad request", 400);
+                    return Ok(self.error("400 bad request", 400));
                 }
                 let input = input.unwrap();
 
                 if input.username.is_empty() {
-                    return error_message(&tera, "register.html", "username is empty");
+                    return Ok(self.error_message("register.html", "username is empty"));
                 }
                 if input.password.is_empty() || input.confirm_password.is_empty() {
-                    return error_message(&tera, "register.html", "password is empty");
+                    return Ok(self.error_message("register.html", "password is empty"));
                 }
                 if input.confirm_password != input.password {
-                    return error_message(&tera, "register.html", "passwords do not match");
+                    return Ok(self.error_message("register.html", "passwords do not match"));
                 }
 
-                let db = db.lock().unwrap();
+                let db = self.db.lock().unwrap();
                 let existing: Option<String> = db.query_row(
                     "SELECT name FROM users WHERE name=(?)", &[&input.username],
                     |row| row.get(0)).optional().unwrap();
                 if existing.is_some() {
-                    return error_message(&tera, "register.html", "username already exists");
+                    return Ok(self.error_message("register.html", "username already exists"));
                 }
 
                 let mut salt = [0u8; 16];
-                rand.fill(&mut salt).unwrap();
+                self.rand.fill(&mut salt).unwrap();
                 let mut hashed = [0u8; password::CREDENTIAL_LEN];
                 password::hash_password(&input.password, &salt, &mut hashed);
                 let mut stmt = db.prepare("INSERT INTO users (name, password, salt, created) VALUES ((?), (?), (?), datetime('now'))").unwrap();
                 stmt.execute(&[&input.username, &base64::encode(&hashed), &base64::encode(&salt)]).unwrap();
 
-                Response::redirect_303("/login")
+                Ok(Response::redirect_303("/login"))
             },
 
             (GET) (/login) => {
-                if verify_session(&db, &request).is_some() {
-                    return Response::redirect_303("/");
+                if self.verify_session(&request).is_some() {
+                    return Ok(Response::redirect_303("/"));
                 }
 
-                Response::html(tera.render("login.html", &Context::new()).unwrap())
+                Ok(Response::html(self.tera.render("login.html", &Context::new()).unwrap()))
             },
 
             (POST) (/login) => {
-                if verify_session(&db, &request).is_some() {
-                    return Response::redirect_303("/");
+                if self.verify_session(&request).is_some() {
+                    return Ok(Response::redirect_303("/"));
                 }
 
                 let input = post_input!(request, {
@@ -184,19 +187,19 @@ fn main() {
                 });
 
                 if input.is_err() {
-                    return error(&tera, "400 bad request", 400);
+                    return Ok(self.error("400 bad request", 400));
                 }
                 let input = input.unwrap();
 
                 if input.username.is_empty() {
-                    return error_message(&tera, "login.html", "username is empty");
+                    return Ok(self.error_message("login.html", "username is empty"));
                 }
                 if input.password.is_empty() {
-                    return error_message(&tera, "login.html", "password is empty");
+                    return Ok(self.error_message("login.html", "password is empty"));
                 }
                 {
                     let user: Option<(u32, String, String)> = {
-                        let db = db.lock().unwrap();
+                        let db = self.db.lock().unwrap();
                         db.query_row(
                             "SELECT id, password, salt FROM users WHERE name = (?)",
                             &[&input.username],
@@ -204,69 +207,85 @@ fn main() {
                     };
 
                     if user.is_none() {
-                        return error_message(&tera, "login.html", "user not found");
+                        return Ok(self.error_message("login.html", "user not found"));
                     }
                     let (id, password, salt) = user.unwrap();
 
                     if password::verify_password(&input.password, &base64::decode(&salt).unwrap(), &base64::decode(&password).unwrap()) {
                         let mut token = [0u8; 32];
-                        rand.fill(&mut token).unwrap();
+                        self.rand.fill(&mut token).unwrap();
                         let token_base64 = base64::encode(&token);
 
                         {
-                            let db = db.lock().unwrap();
+                            let db = self.db.lock().unwrap();
                             let mut stmt = db.prepare("INSERT INTO sessions (user_id, token, created) VALUES ((?), (?), datetime('now'))").unwrap();
                             stmt.execute(&[&id as &ToSql, &token_base64]).unwrap();
                         }
 
                         if input.remember {
-                            Response::redirect_303("/").with_additional_header("Set-Cookie", format!("session={}; Max-Age=2147483648; Path=/;", &token_base64))
+                            Ok(Response::redirect_303("/").with_additional_header("Set-Cookie", format!("session={}; Max-Age=2147483648; Path=/;", &token_base64)))
                         } else {
-                            Response::redirect_303("/").with_additional_header("Set-Cookie", format!("session={}; Path=/;", &token_base64))
+                            Ok(Response::redirect_303("/").with_additional_header("Set-Cookie", format!("session={}; Path=/;", &token_base64)))
                         }
                     } else {
-                        error_message(&tera, "login.html", "incorrect password")
+                        Ok(self.error_message("login.html", "incorrect password"))
                     }
                 }
             },
 
             (POST) (/logout) => {
-                if let Some(user) = verify_session(&db, &request) {
-                    let db = db.lock().unwrap();
+                if let Some(user) = self.verify_session(&request) {
+                    let db = self.db.lock().unwrap();
                     let mut stmt = db.prepare("DELETE FROM sessions WHERE token = (?)").unwrap();
                     stmt.execute(&[&user.token]).unwrap();
                 }
-                Response::redirect_303("/").with_additional_header("Set-Cookie", "session=; Max-Age=0;")
+                Ok(Response::redirect_303("/").with_additional_header("Set-Cookie", "session=; Max-Age=0;"))
             },
 
             _ => {
-                return error(&tera, "404", 404);
+                return Ok(self.error("404", 404));
             },
         }
-    });
-}
+    }
 
-fn verify_session(db: &Mutex<Connection>, request: &Request) -> Option<User> {
-    if let Some((_, token)) = rouille::input::cookies(request).find(|&(name, _)| name == "session") {
-        let db = db.lock().unwrap();
-        db.query_row(
-            "SELECT users.id, users.name FROM sessions INNER JOIN users ON sessions.user_id = users.id WHERE token = (?)",
-            &[&token],
-            |row| User { id: row.get(0), name: row.get(1), token: token.to_string() }).optional().unwrap()
-    } else {
-        None
+    fn verify_session(&self, request: &Request) -> Option<User> {
+        if let Some((_, token)) = rouille::input::cookies(request).find(|&(name, _)| name == "session") {
+            let db = self.db.lock().unwrap();
+            db.query_row(
+                "SELECT users.id, users.name FROM sessions INNER JOIN users ON sessions.user_id = users.id WHERE token = (?)",
+                &[&token],
+                |row| User { id: row.get(0), name: row.get(1), token: token.to_string() }).optional().unwrap()
+        } else {
+            None
+        }
+    }
+
+    fn error(&self, error: &str, status_code: u16) -> Response {
+        let mut context = Context::new();
+        context.insert("error", error);
+        Response::html(self.tera.render("error.html", &context).unwrap())
+            .with_status_code(status_code)
+    }
+
+    fn error_message(&self, template: &str, message: &str) -> Response {
+        let mut context = Context::new();
+        context.insert("message", message);
+        Response::html(self.tera.render(template, &context).unwrap())
     }
 }
 
-fn error(tera: &tera::Tera, error: &str, status_code: u16) -> Response {
-    let mut context = Context::new();
-    context.insert("error", error);
-    Response::html(tera.render("error.html", &context).unwrap())
-        .with_status_code(status_code)
-}
+fn main() {
+    let app = App::new();
 
-fn error_message(tera: &tera::Tera, template: &str, message: &str) -> Response {
-    let mut context = Context::new();
-    context.insert("message", message);
-    Response::html(tera.render(template, &context).unwrap())
+    rouille::start_server("0.0.0.0:80", move |request| {
+        /* serve static files from static/ */
+        if let Some(request) = request.remove_prefix("/static") {
+            let response = rouille::match_assets(&request, "static");
+            if response.is_success() {
+                return response;
+            }
+        }
+
+        app.handle_request(request).unwrap()
+    });
 }
