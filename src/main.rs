@@ -33,9 +33,9 @@ struct Worklog {
 }
 
 fn main() {
-    let mut tera = compile_templates!("src/template/**/*");
+    let tera = compile_templates!("src/template/**/*");
     let db = Mutex::new(Connection::open(Path::new("parnassum.db")).unwrap());
-    let mut rand = ring::rand::SystemRandom::new();
+    let rand = ring::rand::SystemRandom::new();
 
     rouille::start_server("0.0.0.0:80", move |request| {
         /* serve static files from static/ */
@@ -155,7 +155,7 @@ fn main() {
                 }
 
                 let mut salt = [0u8; 16];
-                rand.fill(&mut salt);
+                rand.fill(&mut salt).unwrap();
                 let mut hashed = [0u8; password::CREDENTIAL_LEN];
                 password::hash_password(&input.password, &salt, &mut hashed);
                 let mut stmt = db.prepare("INSERT INTO users (name, password, salt, created) VALUES ((?), (?), (?), datetime('now'))").unwrap();
@@ -210,7 +210,7 @@ fn main() {
 
                     if password::verify_password(&input.password, &base64::decode(&salt).unwrap(), &base64::decode(&password).unwrap()) {
                         let mut token = [0u8; 32];
-                        rand.fill(&mut token);
+                        rand.fill(&mut token).unwrap();
                         let token_base64 = base64::encode(&token);
 
                         {
