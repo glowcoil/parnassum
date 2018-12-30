@@ -89,6 +89,8 @@ impl App {
                 let mut context = Context::new();
                 if let Some(user) = self.verify_session(&request) {
                     context.insert("user", &user);
+                } else {
+                    return Ok(Response::redirect_303("/"));
                 }
 
                 Ok(Response::html(self.tera.render("post.html", &context).unwrap()))
