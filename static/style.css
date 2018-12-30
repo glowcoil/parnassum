@@ -1,3 +1,5 @@
+/* basics */
+
 body {
     background-color: #0a1a24;
     font-family: "Lato", sans-serif;
@@ -36,6 +38,8 @@ input[type="text"], input[type="password"], textarea {
 input[type="text"]:hover, input[type="text"]:focus, input[type="password"]:hover, input[type="password"]:focus, textarea:hover, textarea:focus {
     background-color: #305060;
 }
+
+/* layout */
 
 div#user {
     text-align: right;
@@ -76,13 +80,7 @@ div.column {
     div.column { flex-basis: 100%; }
 }
 
-p {
-    margin: 5px 3px 5px 3px;
-}
-
-table.form {}
-
-td.label {}
+/* form tables */
 
 td.input {
     text-align: left;
@@ -91,6 +89,21 @@ td.input {
 td.submit {
     text-align: center;
 }
+
+
+td.shrink {
+    white-space: nowrap;
+}
+
+td.expand {
+    width: 99%;
+}
+
+input.worklog, input.link {
+    width: 100%;
+}
+
+/* button that looks like a link */
 
 button.link-button {
     color: #9df;
@@ -104,33 +117,8 @@ button.link-button:hover {
     color: #dff;
 }
 
-table.worklog {
-    width: 100%;
-}
+/* worklogs and leaderboard */
 
-td.shrink {
-    white-space: nowrap;
-}
-
-td.link {
-    text-align: right;
-}
-
-td.expand {
-    width: 99%;
-}
-
-input.worklog {
-    width: 100%;
-    margin-right: 3px;
-}
-
-button.post {
-    margin: 0 0 0 3px;
-    height: 40px;
-    padding-bottom: 2px;
-}
-
-input.link {
-    width: 100%;
+p {
+    margin: 5px 3px 5px 3px;
 }

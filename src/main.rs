@@ -85,7 +85,16 @@ impl App {
                 Ok(Response::html(self.tera.render("index.html", &context).unwrap()))
             },
 
-            (POST) (/worklog) => {
+            (GET) (/worklog/post) => {
+                let mut context = Context::new();
+                if let Some(user) = self.verify_session(&request) {
+                    context.insert("user", &user);
+                }
+
+                Ok(Response::html(self.tera.render("post.html", &context).unwrap()))
+            },
+
+            (POST) (/worklog/post) => {
                 let user = self.verify_session(&request);
 
                 if user.is_none() {
