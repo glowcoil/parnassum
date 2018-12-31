@@ -140,6 +140,10 @@ impl App {
                 }
                 let input = input.unwrap();
 
+                if input.worklog.is_empty() {
+                    return Ok(self.error_message("post.html", "worklog is empty"));
+                }
+
                 let link = if input.link.is_empty() {
                     None
                 } else {
