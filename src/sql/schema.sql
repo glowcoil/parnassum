@@ -3,6 +3,7 @@ CREATE TABLE "users" (
     `name` TEXT NOT NULL UNIQUE,
     `password` TEXT NOT NULL,
     `salt` TEXT NOT NULL,
+    `icon` TEXT,
     `created` TEXT
 );
 
