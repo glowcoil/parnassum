@@ -44,7 +44,7 @@ input[type="file"] {
 }
 
 h4 {
-    margin: 10px 3px 10px 3px;
+    margin: 5px 3px 10px 3px;
 }
 
 img {
@@ -133,4 +133,20 @@ button.link-button:hover {
 
 p {
     margin: 5px 3px 5px 3px;
+}
+
+table, tr, td {
+    border-collapse: collapse;
+}
+
+table.board {
+    width: 100%;
+}
+
+td {
+    padding: 2px;
+}
+
+tr.odd {
+    background-color: #39627b;
 }

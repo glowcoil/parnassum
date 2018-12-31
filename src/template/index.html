@@ -5,17 +5,30 @@
 
   <div id="content">
     <div class="column">
-      {% for user in users %}
-        <p><img src="/static/icon/{{ user.icon }}"/> {{ user.name }}</p>
-      {% endfor %}
+      <h4>leaderboard</h4>
+      <table class="board">
+        {% for user in users %}
+          {% if loop.index % 2 == 0 %}<tr class="even">{% else %}<tr class="odd">{% endif %}
+            <td class="shrink"><img src="/static/icon/{{ user.icon }}"/></td>
+            <td class="expand">{{ user.name }}</td>
+        {% endfor %}
+      </table>
     </div>
     <div class="column">
-      {% if user %}
-        <p><a href="/worklog/post">post worklog</a></p>
-      {% endif %}
-      {% for log in worklogs %}
-        <p><img src="/static/icon/{{ log.user.icon }}"/> {{ log.user.name }}: {{ log.text }}</p>
-      {% endfor %}
+      <table class="board">
+        <h4>worklogs</h4>
+        {% if user %}
+          <p><a href="/worklog/post">post worklog</a></p>
+        {% endif %}
+        {% for log in worklogs %}
+          {% if loop.index % 2 == 0 %}<tr class="even">{% else %}<tr class="odd">{% endif %}
+            <td class="shrink"><a href="/user/{{ log.user.name }}"><img src="/static/icon/{{ log.user.icon }}"/></a></td>
+            <td class="shrink"><a href="/user/{{ log.user.name }}">{{ log.user.name }}</a></td>
+            <td class="expand">{{ log.text }}</td>
+            <td class="shrink">link</td>
+          </tr>
+        {% endfor %}
+      </table>
     </div>
   </div>
 {% endblock content %}
