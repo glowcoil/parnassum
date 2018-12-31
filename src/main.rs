@@ -173,6 +173,7 @@ impl App {
                     username: String,
                     password: String,
                     confirm_password: String,
+                    remember: bool,
                 });
 
                 if input.is_err() {
@@ -198,6 +199,8 @@ impl App {
                     return Ok(self.error_message("register.html", "username already exists"));
                 }
 
+                /* create user */
+
                 let mut salt = [0u8; 16];
                 self.rand.fill(&mut salt)?;
                 let mut hashed = [0u8; password::CREDENTIAL_LEN];
@@ -205,7 +208,27 @@ impl App {
                 let mut stmt = db.prepare("INSERT INTO users (name, password, salt, created) VALUES ((?), (?), (?), datetime('now'))")?;
                 stmt.execute(&[&input.username, &base64::encode(&hashed), &base64::encode(&salt)])?;
 
-                Ok(Response::redirect_303("/login"))
+                /* get user id */
+
+                let id: u32 = db.query_row(
+                    "SELECT id, password, salt FROM users WHERE name = (?)",
+                    &[&input.username],
+                    |row| row.get(0))?;
+
+                /* log in */
+
+                let mut token = [0u8; 32];
+                self.rand.fill(&mut token)?;
+                let token_base64 = base64::encode(&token);
+
+                let mut stmt = db.prepare("INSERT INTO sessions (user_id, token, created) VALUES ((?), (?), datetime('now'))")?;
+                stmt.execute(&[&id as &ToSql, &token_base64])?;
+
+                if input.remember {
+                    Ok(Response::redirect_303("/").with_additional_header("Set-Cookie", format!("session={}; Max-Age=2147483648; Path=/;", &token_base64)))
+                } else {
+                    Ok(Response::redirect_303("/").with_additional_header("Set-Cookie", format!("session={}; Path=/;", &token_base64)))
+                }
             },
 
             (GET) (/login) => {
