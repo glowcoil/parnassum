@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block content %}
+  {% include "user.html" %}
+
+  <div id="content">
+    <div class="column">
+      <h4>edit profile</h4>
+      {% if message %}<div id="message">{{ message }}</div>{% endif %}
+      <table class="form">
+        <form action="/settings/username" method="post">
+          <tr>
+            <td class="label">username</td>
+            <td class="input"><input type="text" name="username" value="{{ user.name }}"/></td>
+            <td class="submit"><button type="submit">change</button></td>
+          </tr>
+        </form>
+        <tr><td><br/></td></tr>
+        <form action="/settings/password" method="post">
+          <tr><td class="label">password</td><td class="input"><input type="password" name="password"/></td></tr>
+          <tr>
+            <td class="label">confirm password</td><td class="input"><input type="password" name="confirm_password"/></td>
+            <td class="submit"><button type="submit">change</button></td>
+          </tr>
+        </form>
+        <tr><td><br/></td></tr>
+        <form action="/settings/icon" method="post">
+          <tr>
+            <td class="label">icon (16x16 png)</td><td class="input"><input type="file" name="icon"/></td>
+            <td class="submit"><button type="submit">change</button></td>
+          </tr>
+        </form>
+      </table>
+    </div>
+  </div>
+{% endblock content %}

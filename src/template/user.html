@@ -1,6 +1,6 @@
 <div id="user">
   {% if user %}
-    {{ user.name }}
+    <a href="/user/{{ user.name }}">{{ user.name }}</a>
     <form action="/logout" method="post"><button type="submit" class="link-button">logout</button></form>
   {% else %}
     <a href="/register">register</a><br/>

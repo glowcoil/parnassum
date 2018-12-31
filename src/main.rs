@@ -100,7 +100,7 @@ impl App {
 
                 let db = self.db.lock().unwrap();
                 let profile: Option<Profile> = db.query_row(
-                    "SELECT id, name, date(created) FROM users WHERE name=(?)", &[&name],
+                    "SELECT id, name, date(created) FROM users WHERE name = (?)", &[&name],
                     |row| Profile { id: row.get(0), name: row.get(1), created: row.get(2) }).optional()?;
                 if let Some(profile) = profile {
                     context.insert("profile", &profile);
@@ -304,6 +304,107 @@ impl App {
                     stmt.execute(&[&user.token])?;
                 }
                 Ok(Response::redirect_303("/").with_additional_header("Set-Cookie", "session=; Max-Age=0;"))
+            },
+
+            (GET) (/settings) => {
+                let mut context = Context::new();
+                if let Some(user) = self.verify_session(&request)? {
+                    context.insert("user", &user);
+                } else {
+                    return Ok(Response::redirect_303("/"));
+                }
+
+                Ok(Response::html(self.tera.render("settings.html", &context).unwrap()))
+            },
+
+            (POST) (/settings/username) => {
+                let user = self.verify_session(&request)?;
+                if user.is_none() {
+                    return Ok(Response::redirect_303("/"));
+                }
+                let user = user.unwrap();
+
+                let mut context = Context::new();
+                context.insert("user", &user);
+
+                let input = post_input!(request, {
+                    username: String,
+                });
+
+                if input.is_err() {
+                    return Ok(self.error("400 bad request", 400));
+                }
+                let input = input.unwrap();
+
+                if input.username.is_empty() {
+                    context.insert("message", "username is empty");
+                    return Ok(Response::html(self.tera.render("settings.html", &context).unwrap()));
+                }
+
+                {
+                    let db = self.db.lock().unwrap();
+
+                    let existing: Option<String> = db.query_row(
+                        "SELECT name FROM users WHERE name = (?) AND id != (?)", &[&input.username as &ToSql, &user.id],
+                        |row| row.get(0)).optional()?;
+                    if existing.is_some() {
+                        context.insert("message", "username already exists");
+                        return Ok(Response::html(self.tera.render("settings.html", &context).unwrap()));
+                    }
+
+                    let mut stmt = db.prepare("UPDATE users SET name = (?) WHERE id = (?)")?;
+                    stmt.execute(&[&input.username as &ToSql, &user.id])?;
+                }
+
+                Ok(Response::redirect_303("/settings"))
+            },
+
+            (POST) (/settings/password) => {
+                let user = self.verify_session(&request)?;
+                if user.is_none() {
+                    return Ok(Response::redirect_303("/"));
+                }
+                let user = user.unwrap();
+
+                let mut context = Context::new();
+                context.insert("user", &user);
+
+                let input = post_input!(request, {
+                    password: String,
+                    confirm_password: String,
+                });
+
+                if input.is_err() {
+                    return Ok(self.error("400 bad request", 400));
+                }
+                let input = input.unwrap();
+
+                if input.password.is_empty() || input.confirm_password.is_empty() {
+                    return Ok(self.error_message("register.html", "password is empty"));
+                }
+                if input.confirm_password != input.password {
+                    return Ok(self.error_message("register.html", "passwords do not match"));
+                }
+
+                {
+                    let db = self.db.lock().unwrap();
+
+                    let salt: String = db.query_row(
+                        "SELECT salt FROM users WHERE id = (?)", &[&user.id],
+                        |row| row.get(0))?;
+                    let salt = base64::decode(&salt)?;
+                    let mut hashed = [0u8; password::CREDENTIAL_LEN];
+                    password::hash_password(&input.password, &salt, &mut hashed);
+
+                    let mut stmt = db.prepare("UPDATE users SET password = (?) WHERE id = (?)")?;
+                    stmt.execute(&[&base64::encode(&hashed) as &ToSql, &user.id])?;
+                }
+
+                Ok(Response::redirect_303("/settings"))
+            },
+
+            (POST) (/settings/icon) => {
+                Ok(Response::redirect_303("/settings"))
             },
 
             _ => {

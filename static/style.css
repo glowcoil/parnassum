@@ -39,6 +39,10 @@ input[type="text"]:hover, input[type="text"]:focus, input[type="password"]:hover
     background-color: #305060;
 }
 
+input[type="file"] {
+    max-width: 140px;
+}
+
 h4 {
     margin: 10px 3px 10px 3px;
 }

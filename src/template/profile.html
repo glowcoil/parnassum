@@ -6,6 +6,9 @@
   <div id="content">
     <div class="column">
       <h4>{{ profile.name }}</h4>
+      {% if profile.id == user.id %}
+        <div><a href="/settings">edit profile</a></div>
+      {% endif %}
       <div>member since {{ profile.created }}</div>
     </div>
   </div>
