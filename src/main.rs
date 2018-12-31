@@ -52,7 +52,7 @@ impl App {
         router! { request,
             (GET) (/) => {
                 let mut context = Context::new();
-                if let Some(user) = self.verify_session(&request) {
+                if let Some(user) = self.verify_session(&request)? {
                     context.insert("user", &user);
                 }
 
@@ -60,10 +60,10 @@ impl App {
                     let db = self.db.lock().unwrap();
 
                     let mut stmt = db.prepare("SELECT name FROM users").unwrap();
-                    let mut rows = stmt.query_map(NO_PARAMS, |row| row.get(0)).unwrap();
+                    let mut rows = stmt.query_map(NO_PARAMS, |row| row.get(0))?;
                     let mut users: Vec<String> = Vec::new();
                     for row in rows {
-                        users.push(row.unwrap());
+                        users.push(row?);
                     }
                     users
                 };
@@ -75,19 +75,21 @@ impl App {
                     let mut rows = stmt.query_map(NO_PARAMS, |row| Worklog { user: row.get(0), text: row.get(1) }).unwrap();
                     let mut worklogs: Vec<Worklog> = Vec::new();
                     for row in rows {
-                        worklogs.push(row.unwrap());
+                        worklogs.push(row?);
                     }
                     worklogs
                 };
 
                 context.insert("users", &users);
                 context.insert("worklogs", &worklogs);
-                Ok(Response::html(self.tera.render("index.html", &context).unwrap()))
+                Ok(Response::html(self.tera.render("index.html", &context)?))
+            },
+
             },
 
             (GET) (/worklog/post) => {
                 let mut context = Context::new();
-                if let Some(user) = self.verify_session(&request) {
+                if let Some(user) = self.verify_session(&request)? {
                     context.insert("user", &user);
                 } else {
                     return Ok(Response::redirect_303("/"));
@@ -97,7 +99,7 @@ impl App {
             },
 
             (POST) (/worklog/post) => {
-                let user = self.verify_session(&request);
+                let user = self.verify_session(&request)?;
 
                 if user.is_none() {
                     return Ok(Response::redirect_303("/"));
@@ -122,20 +124,20 @@ impl App {
 
                 let db = self.db.lock().unwrap();
                 let mut stmt = db.prepare("INSERT INTO worklogs (user_id, text, link, created) VALUES ((?), (?), (?), datetime('now'))").unwrap();
-                stmt.execute(&[&user.id as &ToSql, &input.worklog, &link]).unwrap();
+                stmt.execute(&[&user.id as &ToSql, &input.worklog, &link])?;
 
                 Ok(Response::redirect_303("/"))
             },
 
             (GET) (/register) => {
-                if self.verify_session(&request).is_some() {
+                if self.verify_session(&request)?.is_some() {
                     return Ok(Response::redirect_303("/"));
                 }
                 Ok(Response::html(self.tera.render("register.html", &Context::new()).unwrap()))
             },
 
             (POST) (/register) => {
-                if self.verify_session(&request).is_some() {
+                if self.verify_session(&request)?.is_some() {
                     return Ok(Response::redirect_303("/"));
                 }
 
@@ -163,23 +165,23 @@ impl App {
                 let db = self.db.lock().unwrap();
                 let existing: Option<String> = db.query_row(
                     "SELECT name FROM users WHERE name=(?)", &[&input.username],
-                    |row| row.get(0)).optional().unwrap();
+                    |row| row.get(0)).optional()?;
                 if existing.is_some() {
                     return Ok(self.error_message("register.html", "username already exists"));
                 }
 
                 let mut salt = [0u8; 16];
-                self.rand.fill(&mut salt).unwrap();
+                self.rand.fill(&mut salt)?;
                 let mut hashed = [0u8; password::CREDENTIAL_LEN];
                 password::hash_password(&input.password, &salt, &mut hashed);
-                let mut stmt = db.prepare("INSERT INTO users (name, password, salt, created) VALUES ((?), (?), (?), datetime('now'))").unwrap();
-                stmt.execute(&[&input.username, &base64::encode(&hashed), &base64::encode(&salt)]).unwrap();
+                let mut stmt = db.prepare("INSERT INTO users (name, password, salt, created) VALUES ((?), (?), (?), datetime('now'))")?;
+                stmt.execute(&[&input.username, &base64::encode(&hashed), &base64::encode(&salt)])?;
 
                 Ok(Response::redirect_303("/login"))
             },
 
             (GET) (/login) => {
-                if self.verify_session(&request).is_some() {
+                if self.verify_session(&request)?.is_some() {
                     return Ok(Response::redirect_303("/"));
                 }
 
@@ -187,7 +189,7 @@ impl App {
             },
 
             (POST) (/login) => {
-                if self.verify_session(&request).is_some() {
+                if self.verify_session(&request)?.is_some() {
                     return Ok(Response::redirect_303("/"));
                 }
 
@@ -214,7 +216,7 @@ impl App {
                         db.query_row(
                             "SELECT id, password, salt FROM users WHERE name = (?)",
                             &[&input.username],
-                            |row| (row.get(0), row.get(1), row.get(2))).optional().unwrap()
+                            |row| (row.get(0), row.get(1), row.get(2))).optional()?
                     };
 
                     if user.is_none() {
@@ -222,15 +224,15 @@ impl App {
                     }
                     let (id, password, salt) = user.unwrap();
 
-                    if password::verify_password(&input.password, &base64::decode(&salt).unwrap(), &base64::decode(&password).unwrap()) {
+                    if password::verify_password(&input.password, &base64::decode(&salt)?, &base64::decode(&password)?) {
                         let mut token = [0u8; 32];
-                        self.rand.fill(&mut token).unwrap();
+                        self.rand.fill(&mut token)?;
                         let token_base64 = base64::encode(&token);
 
                         {
                             let db = self.db.lock().unwrap();
-                            let mut stmt = db.prepare("INSERT INTO sessions (user_id, token, created) VALUES ((?), (?), datetime('now'))").unwrap();
-                            stmt.execute(&[&id as &ToSql, &token_base64]).unwrap();
+                            let mut stmt = db.prepare("INSERT INTO sessions (user_id, token, created) VALUES ((?), (?), datetime('now'))")?;
+                            stmt.execute(&[&id as &ToSql, &token_base64])?;
                         }
 
                         if input.remember {
@@ -245,10 +247,10 @@ impl App {
             },
 
             (POST) (/logout) => {
-                if let Some(user) = self.verify_session(&request) {
+                if let Some(user) = self.verify_session(&request)? {
                     let db = self.db.lock().unwrap();
-                    let mut stmt = db.prepare("DELETE FROM sessions WHERE token = (?)").unwrap();
-                    stmt.execute(&[&user.token]).unwrap();
+                    let mut stmt = db.prepare("DELETE FROM sessions WHERE token = (?)")?;
+                    stmt.execute(&[&user.token])?;
                 }
                 Ok(Response::redirect_303("/").with_additional_header("Set-Cookie", "session=; Max-Age=0;"))
             },
@@ -259,15 +261,15 @@ impl App {
         }
     }
 
-    fn verify_session(&self, request: &Request) -> Option<User> {
+    fn verify_session(&self, request: &Request) -> Result<Option<User>, Box<dyn Error>> {
         if let Some((_, token)) = rouille::input::cookies(request).find(|&(name, _)| name == "session") {
             let db = self.db.lock().unwrap();
-            db.query_row(
+            Ok(db.query_row(
                 "SELECT users.id, users.name FROM sessions INNER JOIN users ON sessions.user_id = users.id WHERE token = (?)",
                 &[&token],
-                |row| User { id: row.get(0), name: row.get(1), token: token.to_string() }).optional().unwrap()
+                |row| User { id: row.get(0), name: row.get(1), token: token.to_string() }).optional()?)
         } else {
-            None
+            Ok(None)
         }
     }
 
