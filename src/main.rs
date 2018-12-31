@@ -38,6 +38,7 @@ struct User {
 struct Worklog {
     user: Profile,
     text: String,
+    link: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -86,11 +87,12 @@ impl App {
                 let worklogs = {
                     let db = self.db.lock().unwrap();
 
-                    let mut stmt = db.prepare("SELECT users.id, users.name, IFNULL(users.icon, 'default.png'), date(users.created), text FROM worklogs INNER JOIN users ON worklogs.user_id = users.id").unwrap();
+                    let mut stmt = db.prepare("SELECT users.id, users.name, IFNULL(users.icon, 'default.png'), date(users.created), text, link FROM worklogs INNER JOIN users ON worklogs.user_id = users.id ORDER BY worklogs.created DESC").unwrap();
                     let mut rows = stmt.query_map(NO_PARAMS, |row|
                         Worklog {
                             user: Profile { id: row.get(0), name: row.get(1), icon: row.get(2), created: row.get(3) },
                             text: row.get(4),
+                            link: row.get(5),
                         }).unwrap();
                     let mut worklogs: Vec<Worklog> = Vec::new();
                     for row in rows {

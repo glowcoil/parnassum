@@ -25,7 +25,11 @@
             <td class="shrink"><a href="/user/{{ log.user.name }}"><img src="/static/icon/{{ log.user.icon }}"/></a></td>
             <td class="shrink"><a href="/user/{{ log.user.name }}">{{ log.user.name }}</a></td>
             <td class="expand">{{ log.text }}</td>
-            <td class="shrink">link</td>
+            <td class="shrink">
+              {% if log.link %}
+                <a href="{{ log.link }}" target="_blank"><img src="/static/external-link.svg" height="16px" width="16px"/></a>
+              {% endif %}
+            </td>
           </tr>
         {% endfor %}
       </table>
