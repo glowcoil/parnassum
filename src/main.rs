@@ -33,6 +33,13 @@ struct Worklog {
     text: String,
 }
 
+#[derive(Serialize)]
+struct Profile {
+    id: u32,
+    name: String,
+    created: String,
+}
+
 struct App {
     tera: tera::Tera,
     db: Mutex<Connection>,
@@ -85,6 +92,23 @@ impl App {
                 Ok(Response::html(self.tera.render("index.html", &context)?))
             },
 
+            (GET) (/user/{name: String}) => {
+                let mut context = Context::new();
+                if let Some(user) = self.verify_session(&request)? {
+                    context.insert("user", &user);
+                }
+
+                let db = self.db.lock().unwrap();
+                let profile: Option<Profile> = db.query_row(
+                    "SELECT id, name, date(created) FROM users WHERE name=(?)", &[&name],
+                    |row| Profile { id: row.get(0), name: row.get(1), created: row.get(2) }).optional()?;
+                if let Some(profile) = profile {
+                    context.insert("profile", &profile);
+                } else {
+                    return Ok(self.error("user not found", 404));
+                }
+
+                Ok(Response::html(self.tera.render("profile.html", &context).unwrap()))
             },
 
             (GET) (/worklog/post) => {

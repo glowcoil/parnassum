@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+
+{% block content %}
+  {% include "user.html" %}
+
+  <div id="content">
+    <div class="column">
+      <h4>{{ profile.name }}</h4>
+      <div>member since {{ profile.created }}</div>
+    </div>
+  </div>
+{% endblock content %}
