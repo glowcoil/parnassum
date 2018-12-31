@@ -6,7 +6,7 @@
   <div id="content">
     <div class="column">
       {% for user in users %}
-        <p>{{ user }}</p>
+        <p><img src="/static/icon/{{ user.icon }}"/> {{ user.name }}</p>
       {% endfor %}
     </div>
     <div class="column">
@@ -14,7 +14,7 @@
         <p><a href="/worklog/post">post worklog</a></p>
       {% endif %}
       {% for log in worklogs %}
-        <p>{{ log.user }}: {{ log.text }}</p>
+        <p><img src="/static/icon/{{ log.user.icon }}"/> {{ log.user.name }}: {{ log.text }}</p>
       {% endfor %}
     </div>
   </div>

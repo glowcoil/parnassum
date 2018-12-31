@@ -24,9 +24,9 @@
           </tr>
         </form>
         <tr><td><br/></td></tr>
-        <form action="/settings/icon" method="post">
+        <form action="/settings/icon" method="post" enctype=multipart/form-data>
           <tr>
-            <td class="label">icon (16x16 png)</td><td class="input"><input type="file" name="icon"/></td>
+            <td class="label">icon (16x16 png)</td><td class="input"><input type="file" accept="image/png" name="icon"/></td>
             <td class="submit"><button type="submit">change</button></td>
           </tr>
         </form>

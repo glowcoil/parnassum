@@ -47,6 +47,10 @@ h4 {
     margin: 10px 3px 10px 3px;
 }
 
+img {
+    vertical-align: sub;
+}
+
 /* layout */
 
 div#user {

@@ -5,7 +5,7 @@
 
   <div id="content">
     <div class="column">
-      <h4>{{ profile.name }}</h4>
+      <h4><img src="/static/icon/{{ user.icon }}"/> {{ profile.name }}</h4>
       {% if profile.id == user.id %}
         <div><a href="/settings">edit profile</a></div>
       {% endif %}

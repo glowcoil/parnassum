@@ -8,28 +8,35 @@ extern crate rusqlite;
 extern crate ring;
 extern crate base64;
 extern crate serde_derive;
+extern crate image;
 
 use std::error::Error;
+use std::fs::File;
+use std::io::Write;
 use std::path::Path;
 use std::sync::Mutex;
 
 use rouille::{Request, Response};
+use rouille::input::post::BufferedFile;
 use tera::Context;
 use rusqlite::{Connection, NO_PARAMS, OptionalExtension};
 use rusqlite::types::ToSql;
 use ring::rand::SecureRandom;
 use serde_derive::Serialize;
+use image::png::PNGDecoder;
+use image::ImageDecoder;
 
 #[derive(Serialize)]
 struct User {
     id: u32,
     name: String,
+    icon: String,
     token: String,
 }
 
 #[derive(Serialize)]
 struct Worklog {
-    user: String,
+    user: Profile,
     text: String,
 }
 
@@ -37,6 +44,7 @@ struct Worklog {
 struct Profile {
     id: u32,
     name: String,
+    icon: String,
     created: String,
 }
 
@@ -66,9 +74,9 @@ impl App {
                 let users = {
                     let db = self.db.lock().unwrap();
 
-                    let mut stmt = db.prepare("SELECT name FROM users").unwrap();
-                    let mut rows = stmt.query_map(NO_PARAMS, |row| row.get(0))?;
-                    let mut users: Vec<String> = Vec::new();
+                    let mut stmt = db.prepare("SELECT id, name, IFNULL(users.icon, 'default.png'), date(created) FROM users").unwrap();
+                    let mut rows = stmt.query_map(NO_PARAMS, |row| Profile { id: row.get(0), name: row.get(1), icon: row.get(2), created: row.get(3) })?;
+                    let mut users: Vec<Profile> = Vec::new();
                     for row in rows {
                         users.push(row?);
                     }
@@ -78,8 +86,12 @@ impl App {
                 let worklogs = {
                     let db = self.db.lock().unwrap();
 
-                    let mut stmt = db.prepare("SELECT name, text FROM worklogs INNER JOIN users ON worklogs.user_id = users.id").unwrap();
-                    let mut rows = stmt.query_map(NO_PARAMS, |row| Worklog { user: row.get(0), text: row.get(1) }).unwrap();
+                    let mut stmt = db.prepare("SELECT users.id, users.name, IFNULL(users.icon, 'default.png'), date(users.created), text FROM worklogs INNER JOIN users ON worklogs.user_id = users.id").unwrap();
+                    let mut rows = stmt.query_map(NO_PARAMS, |row|
+                        Worklog {
+                            user: Profile { id: row.get(0), name: row.get(1), icon: row.get(2), created: row.get(3) },
+                            text: row.get(4),
+                        }).unwrap();
                     let mut worklogs: Vec<Worklog> = Vec::new();
                     for row in rows {
                         worklogs.push(row?);
@@ -100,8 +112,8 @@ impl App {
 
                 let db = self.db.lock().unwrap();
                 let profile: Option<Profile> = db.query_row(
-                    "SELECT id, name, date(created) FROM users WHERE name = (?)", &[&name],
-                    |row| Profile { id: row.get(0), name: row.get(1), created: row.get(2) }).optional()?;
+                    "SELECT id, name, IFNULL(users.icon, 'default.png'), date(created) FROM users WHERE name = (?)", &[&name],
+                    |row| Profile { id: row.get(0), name: row.get(1), icon: row.get(2), created: row.get(3) }).optional()?;
                 if let Some(profile) = profile {
                     context.insert("profile", &profile);
                 } else {
@@ -380,10 +392,12 @@ impl App {
                 let input = input.unwrap();
 
                 if input.password.is_empty() || input.confirm_password.is_empty() {
-                    return Ok(self.error_message("register.html", "password is empty"));
+                    context.insert("message", "password is empty");
+                    return Ok(Response::html(self.tera.render("settings.html", &context).unwrap()));
                 }
                 if input.confirm_password != input.password {
-                    return Ok(self.error_message("register.html", "passwords do not match"));
+                    context.insert("message", "passwords do not match");
+                    return Ok(Response::html(self.tera.render("settings.html", &context).unwrap()));
                 }
 
                 {
@@ -404,6 +418,47 @@ impl App {
             },
 
             (POST) (/settings/icon) => {
+                let user = self.verify_session(&request)?;
+                if user.is_none() {
+                    return Ok(Response::redirect_303("/"));
+                }
+                let user = user.unwrap();
+
+                let mut context = Context::new();
+                context.insert("user", &user);
+
+                let input = post_input!(request, {
+                    icon: BufferedFile,
+                });
+
+                if input.is_err() {
+                    return Ok(self.error("400 bad request", 400));
+                }
+                let input = input.unwrap();
+
+                {
+                    let mut buffer = PNGDecoder::new(&input.icon.data[..]);
+                    if let Ok((width, height)) = buffer.dimensions() {
+                        if width != 16 || height != 16 {
+                            context.insert("message", "image must be 16x16");
+                            return Ok(Response::html(self.tera.render("settings.html", &context).unwrap()));
+                        }
+                    } else {
+                        context.insert("message", "invalid image");
+                        return Ok(Response::html(self.tera.render("settings.html", &context).unwrap()));
+                    }
+                }
+
+                let mut file = File::create(format!("static/icon/{}.png", &user.id.to_string()))?;
+                file.write(&input.icon.data[..])?;
+
+                {
+                    let db = self.db.lock().unwrap();
+
+                    let mut stmt = db.prepare("UPDATE users SET icon = (?) WHERE id = (?)")?;
+                    stmt.execute(&[&format!("{}.png", &user.id.to_string()) as &ToSql, &user.id])?;
+                }
+
                 Ok(Response::redirect_303("/settings"))
             },
 
@@ -417,9 +472,9 @@ impl App {
         if let Some((_, token)) = rouille::input::cookies(request).find(|&(name, _)| name == "session") {
             let db = self.db.lock().unwrap();
             Ok(db.query_row(
-                "SELECT users.id, users.name FROM sessions INNER JOIN users ON sessions.user_id = users.id WHERE token = (?)",
+                "SELECT users.id, users.name, IFNULL(users.icon, 'default.png') FROM sessions INNER JOIN users ON sessions.user_id = users.id WHERE token = (?)",
                 &[&token],
-                |row| User { id: row.get(0), name: row.get(1), token: token.to_string() }).optional()?)
+                |row| User { id: row.get(0), name: row.get(1), icon: row.get(2), token: token.to_string() }).optional()?)
         } else {
             Ok(None)
         }
