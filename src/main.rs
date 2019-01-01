@@ -103,8 +103,7 @@ impl App {
                            WHERE worklogs.user_id = users.id AND
                                  CAST(julianday(worklogs.created) / 7 AS INTEGER)
                                  = CAST(julianday() / 7 AS INTEGER))
-                          > 0 AND
-                          streak > 1
+                          > 0
                     ORDER BY streak DESC").unwrap();
                     let mut rows = stmt.query_map(NO_PARAMS, |row| {
                         LeaderboardEntry {
