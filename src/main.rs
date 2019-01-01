@@ -87,7 +87,7 @@ impl App {
                            IFNULL(users.icon, 'default.png'),
                            users.created,
                            1 + CAST(julianday() / 7 AS INTEGER) -
-                               (SELECT max(CAST(julianday(worklogs.created) / 7 AS INTEGER))
+                               (SELECT MAX(CAST(julianday(worklogs.created) / 7 AS INTEGER))
                                 FROM worklogs
                                 WHERE worklogs.user_id = users.id
                                 AND (SELECT count(*)
