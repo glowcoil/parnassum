@@ -9,7 +9,7 @@
       <table class="board">
         {% for entry in leaderboard %}
           {% if loop.index % 2 == 0 %}<tr class="even">{% else %}<tr class="odd">{% endif %}
-            <td class="shrink"><img src="/static/icon/{{ entry.user.icon }}"/></td>
+            <td class="shrink"><img width="16px" height="16px" src="/static/icon/{{ entry.user.icon }}"/></td>
             <td class="expand"><a href="/user/{{ entry.user.name }}">{{ entry.user.name }}</a></td>
             <td class="shrink">
               {{ entry.streak }} {% if entry.streak == 1 %}week{% else %}weeks{%endif%}
@@ -25,12 +25,12 @@
         {% endif %}
         {% for log in worklogs %}
           {% if loop.index % 2 == 0 %}<tr class="even">{% else %}<tr class="odd">{% endif %}
-            <td class="shrink"><img src="/static/icon/{{ log.user.icon }}"/></td>
+            <td class="shrink"><img width="16px" height="16px" src="/static/icon/{{ log.user.icon }}"/></td>
             <td class="shrink"><a href="/user/{{ log.user.name }}">{{ log.user.name }}</a></td>
             <td class="expand">{{ log.text }}</td>
             <td class="shrink">
               {% if log.link %}
-                <a href="{{ log.link }}" target="_blank"><img src="/static/external-link.svg" height="16px" width="16px"/></a>
+                <a href="{{ log.link }}" target="_blank"><img src="/static/external-link.svg" width="16px" height="16px" /></a>
               {% endif %}
             </td>
           </tr>
