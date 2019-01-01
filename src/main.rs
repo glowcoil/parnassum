@@ -49,6 +49,12 @@ struct Profile {
     created: String,
 }
 
+#[derive(Serialize)]
+struct LeaderboardEntry {
+    user: Profile,
+    streak: u32,
+}
+
 struct App {
     tera: tera::Tera,
     db: Mutex<Connection>,
@@ -72,16 +78,45 @@ impl App {
                     context.insert("user", &user);
                 }
 
-                let users = {
+                let leaderboard = {
                     let db = self.db.lock().unwrap();
 
-                    let mut stmt = db.prepare("SELECT id, name, IFNULL(users.icon, 'default.png'), date(created) FROM users").unwrap();
-                    let mut rows = stmt.query_map(NO_PARAMS, |row| Profile { id: row.get(0), name: row.get(1), icon: row.get(2), created: row.get(3) })?;
-                    let mut users: Vec<Profile> = Vec::new();
+                    let mut stmt = db.prepare("
+                    SELECT users.id,
+                           users.name,
+                           IFNULL(users.icon, 'default.png'),
+                           users.created,
+                           1 + CAST(julianday() / 7 AS INTEGER) -
+                               (SELECT max(CAST(julianday(worklogs.created) / 7 AS INTEGER))
+                                FROM worklogs
+                                WHERE worklogs.user_id = users.id
+                                AND (SELECT count(*)
+                                     FROM worklogs w2
+                                     WHERE w2.user_id = users.id AND
+                                           CAST(julianday(worklogs.created) / 7 AS INTEGER) - 1
+                                           = CAST(julianday(w2.created) / 7 AS INTEGER))
+                                    = 0)
+                           AS streak
+                    FROM users
+                    WHERE (SELECT count(*)
+                           FROM worklogs
+                           WHERE worklogs.user_id = users.id AND
+                                 CAST(julianday(worklogs.created) / 7 AS INTEGER)
+                                 = CAST(julianday() / 7 AS INTEGER))
+                          > 0 AND
+                          streak > 1
+                    ORDER BY streak DESC").unwrap();
+                    let mut rows = stmt.query_map(NO_PARAMS, |row| {
+                        LeaderboardEntry {
+                            user: Profile { id: row.get(0), name: row.get(1), icon: row.get(2), created: row.get(3) },
+                            streak: row.get(4),
+                        }
+                    })?;
+                    let mut leaderboard: Vec<LeaderboardEntry> = Vec::new();
                     for row in rows {
-                        users.push(row?);
+                        leaderboard.push(row?);
                     }
-                    users
+                    leaderboard
                 };
 
                 let worklogs = {
@@ -101,7 +136,7 @@ impl App {
                     worklogs
                 };
 
-                context.insert("users", &users);
+                context.insert("leaderboard", &leaderboard);
                 context.insert("worklogs", &worklogs);
                 Ok(Response::html(self.tera.render("index.html", &context)?))
             },

@@ -7,10 +7,11 @@
     <div class="column">
       <h4>leaderboard</h4>
       <table class="board">
-        {% for user in users %}
+        {% for entry in leaderboard %}
           {% if loop.index % 2 == 0 %}<tr class="even">{% else %}<tr class="odd">{% endif %}
-            <td class="shrink"><img src="/static/icon/{{ user.icon }}"/></td>
-            <td class="expand">{{ user.name }}</td>
+            <td class="shrink"><img src="/static/icon/{{ entry.user.icon }}"/></td>
+            <td class="expand">{{ entry.user.name }}</td>
+            <td class="shrink">{{ entry.streak }} weeks</td>
         {% endfor %}
       </table>
     </div>
