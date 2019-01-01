@@ -1,9 +1,9 @@
 <div id="user">
   {% if user %}
-    <a href="/user/{{ user.name }}"><img src="/static/icon/{{ user.icon }}"/> {{ user.name }}</a>
-    <form action="/logout" method="post"><button type="submit" class="link-button">logout</button></form>
+    <p><a href="/user/{{ user.name }}"><img src="/static/icon/{{ user.icon }}"/> {{ user.name }}</a></p>
+    <p><form action="/logout" method="post"><button type="submit" class="link-button">logout</button></form></p>
   {% else %}
-    <a href="/register">register</a><br/>
-    <a href="/login">login</a>
+    <p><a href="/register">register</a><br/></p>
+    <p><a href="/login">login</a></p>
   {% endif %}
 </div>
