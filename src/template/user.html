@@ -1,6 +1,6 @@
 <div id="user">
   {% if user %}
-    <p><a href="/user/{{ user.name }}"><img src="/static/icon/{{ user.icon }}"/> {{ user.name }}</a></p>
+    <p><img src="/static/icon/{{ user.icon }}"/> {{ user.name }}</p>
     <p><form action="/logout" method="post"><button type="submit" class="link-button">logout</button></form></p>
   {% else %}
     <p><a href="/register">register</a><br/></p>
