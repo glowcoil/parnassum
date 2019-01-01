@@ -11,7 +11,9 @@
           {% if loop.index % 2 == 0 %}<tr class="even">{% else %}<tr class="odd">{% endif %}
             <td class="shrink"><a href="/user/{{ entry.user.name }}"><img src="/static/icon/{{ entry.user.icon }}"/></a></td>
             <td class="expand"><a href="/user/{{ entry.user.name }}">{{ entry.user.name }}</a></td>
-            <td class="shrink">{{ entry.streak }} weeks</td>
+            <td class="shrink">
+              {{ entry.streak }} {% if entry.streak == 1 %}week{% else %}weeks{%endif%}
+            </td>
         {% endfor %}
       </table>
     </div>
