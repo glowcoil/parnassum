@@ -9,8 +9,8 @@
       <table class="board">
         {% for entry in leaderboard %}
           {% if loop.index % 2 == 0 %}<tr class="even">{% else %}<tr class="odd">{% endif %}
-            <td class="shrink"><img src="/static/icon/{{ entry.user.icon }}"/></td>
-            <td class="expand">{{ entry.user.name }}</td>
+            <td class="shrink"><a href="/user/{{ entry.user.name }}"><img src="/static/icon/{{ entry.user.icon }}"/></a></td>
+            <td class="expand"><a href="/user/{{ entry.user.name }}">{{ entry.user.name }}</a></td>
             <td class="shrink">{{ entry.streak }} weeks</td>
         {% endfor %}
       </table>
