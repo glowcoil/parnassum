@@ -146,14 +146,16 @@ impl App {
                     context.insert("user", &user);
                 }
 
-                let db = self.db.lock().unwrap();
-                let profile: Option<Profile> = db.query_row(
-                    "SELECT id, name, IFNULL(users.icon, 'default.png'), date(created) FROM users WHERE name = (?)", &[&name],
-                    |row| Profile { id: row.get(0), name: row.get(1), icon: row.get(2), created: row.get(3) }).optional()?;
-                if let Some(profile) = profile {
-                    context.insert("profile", &profile);
-                } else {
-                    return Ok(self.error("user not found", 404));
+                {
+                    let db = self.db.lock().unwrap();
+                    let profile: Option<Profile> = db.query_row(
+                        "SELECT id, name, IFNULL(users.icon, 'default.png'), date(created) FROM users WHERE name = (?)", &[&name],
+                        |row| Profile { id: row.get(0), name: row.get(1), icon: row.get(2), created: row.get(3) }).optional()?;
+                    if let Some(profile) = profile {
+                        context.insert("profile", &profile);
+                    } else {
+                        return Ok(self.error("user not found", 404));
+                    }
                 }
 
                 Ok(Response::html(self.tera.render("profile.html", &context).unwrap()))
