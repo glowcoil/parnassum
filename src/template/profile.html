@@ -6,8 +6,10 @@
   <div id="content">
     <div class="column">
       <h4><img src="/static/icon/{{ profile.icon }}"/> {{ profile.name }}</h4>
-      {% if profile.id == user.id %}
-        <p><a href="/settings">edit profile</a></p>
+      {% if user.id %}
+        {% if profile.id == user.id %}
+          <p><a href="/settings">edit profile</a></p>
+        {% endif %}
       {% endif %}
       <p>member since {{ profile.created }}</p>
     </div>
