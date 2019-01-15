@@ -53,6 +53,7 @@ struct Profile {
 struct LeaderboardEntry {
     user: Profile,
     streak: u32,
+    current: bool,
 }
 
 struct App {
@@ -96,19 +97,29 @@ impl App {
                                            CAST(julianday(worklogs.created) / 7 AS INTEGER) - 1
                                            = CAST(julianday(w2.created) / 7 AS INTEGER))
                                     = 0)
-                           AS streak
+                           AS streak,
+                           (SELECT count(*)
+                               FROM worklogs
+                               WHERE worklogs.user_id = users.id AND
+                                     CAST(julianday(worklogs.created) / 7 AS INTEGER)
+                                     = CAST(julianday() / 7 AS INTEGER))
+                              > 0 AS this_week,
+                           (SELECT count(*)
+                               FROM worklogs
+                               WHERE worklogs.user_id = users.id AND
+                                     CAST(julianday(worklogs.created) / 7 AS INTEGER)
+                                     = CAST(julianday() / 7 AS INTEGER) - 1)
+                              > 0 AS last_week
                     FROM users
-                    WHERE (SELECT count(*)
-                           FROM worklogs
-                           WHERE worklogs.user_id = users.id AND
-                                 CAST(julianday(worklogs.created) / 7 AS INTEGER)
-                                 = CAST(julianday() / 7 AS INTEGER))
-                          > 0
-                    ORDER BY streak DESC").unwrap();
+                    WHERE this_week OR last_week
+                    ORDER BY this_week ASC, streak DESC").unwrap();
                     let mut rows = stmt.query_map(NO_PARAMS, |row| {
+                        let current: bool = row.get(5);
+                        let streak: u32 = row.get(4);
                         LeaderboardEntry {
                             user: Profile { id: row.get(0), name: row.get(1), icon: row.get(2), created: row.get(3) },
-                            streak: row.get(4),
+                            streak: if current { streak } else { streak - 1 },
+                            current: current,
                         }
                     })?;
                     let mut leaderboard: Vec<LeaderboardEntry> = Vec::new();

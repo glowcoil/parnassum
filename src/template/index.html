@@ -12,7 +12,9 @@
             <td class="shrink"><img width="16px" height="16px" src="/static/icon/{{ entry.user.icon }}"/></td>
             <td class="expand"><a href="/user/{{ entry.user.name }}">{{ entry.user.name }}</a></td>
             <td class="shrink">
-              {{ entry.streak }} {% if entry.streak == 1 %}week{% else %}weeks{%endif%}
+              {% if entry.current %}<div class="current">{% else %}<div class="lapsing">{% endif %}
+                {{ entry.streak }} {% if entry.streak == 1 %}week{% else %}weeks{%endif%}
+              </div>
             </td>
         {% endfor %}
       </table>
