@@ -112,7 +112,7 @@ impl App {
                               > 0 AS last_week
                     FROM users
                     WHERE this_week OR last_week
-                    ORDER BY this_week ASC, streak DESC").unwrap();
+                    ORDER BY this_week DESC, streak DESC").unwrap();
                     let mut rows = stmt.query_map(NO_PARAMS, |row| {
                         let current: bool = row.get(5);
                         let streak: u32 = row.get(4);
