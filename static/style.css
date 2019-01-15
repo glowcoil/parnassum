@@ -150,3 +150,7 @@ td {
 tr.odd {
     background-color: #1f465e;
 }
+
+div.lapsing {
+    color: #9cc;
+}
