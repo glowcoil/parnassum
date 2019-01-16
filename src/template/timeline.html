@@ -22,7 +22,11 @@
       <a class="older" href="/worklogs/{{ page + 1 }}">older</a>
     {% endif %}
     {% if newer %}
-      <a class="newer" href="/worklogs/{{ page - 1 }}">newer</a>
+      {% if page == 1 %}
+        <a class="newer" href="/">newer</a>
+      {% else %}
+        <a class="newer" href="/worklogs/{{ page - 1 }}">newer</a>
+      {% endif %}
     {% endif %}
   </p>
 {% endif %}
