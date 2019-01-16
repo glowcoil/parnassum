@@ -154,3 +154,7 @@ tr.odd {
 div.lapsing {
     color: #9cc;
 }
+
+.newer {
+    float: right;
+}

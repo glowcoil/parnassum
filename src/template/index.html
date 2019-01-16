@@ -20,24 +20,7 @@
       </table>
     </div>
     <div class="column">
-      <table class="board">
-        <h4>worklogs</h4>
-        {% if user %}
-          <p><a href="/worklog/post">post worklog</a></p>
-        {% endif %}
-        {% for log in worklogs %}
-          {% if loop.index % 2 == 0 %}<tr class="even">{% else %}<tr class="odd">{% endif %}
-            <td class="shrink"><img width="16px" height="16px" src="/static/icon/{{ log.user.icon }}"/></td>
-            <td class="shrink"><a href="/user/{{ log.user.name }}">{{ log.user.name }}</a></td>
-            <td class="expand">{{ log.text }}</td>
-            <td class="shrink">
-              {% if log.link %}
-                <a href="{{ log.link }}" target="_blank"><img src="/static/external-link.svg" width="16px" height="16px" /></a>
-              {% endif %}
-            </td>
-          </tr>
-        {% endfor %}
-      </table>
+      {% include "timeline.html" %}
     </div>
   </div>
 {% endblock content %}

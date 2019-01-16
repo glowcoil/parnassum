@@ -1,0 +1,28 @@
+<h4>worklogs</h4>
+{% if user %}
+  <p><a href="/worklog/post">post worklog</a></p>
+{% endif %}
+<table class="board">
+  {% for log in worklogs %}
+    {% if loop.index % 2 == 0 %}<tr class="even">{% else %}<tr class="odd">{% endif %}
+      <td class="shrink"><img width="16px" height="16px" src="/static/icon/{{ log.user.icon }}"/></td>
+      <td class="shrink"><a href="/user/{{ log.user.name }}">{{ log.user.name }}</a></td>
+      <td class="expand">{{ log.text }}</td>
+      <td class="shrink">
+        {% if log.link %}
+          <a href="{{ log.link }}" target="_blank"><img src="/static/external-link.svg" width="16px" height="16px" /></a>
+        {% endif %}
+      </td>
+    </tr>
+  {% endfor %}
+</table>
+{% if older or newer %}
+  <p>
+    {% if older %}
+      <a class="older" href="/worklogs/{{ page + 1 }}">older</a>
+    {% endif %}
+    {% if newer %}
+      <a class="newer" href="/worklogs/{{ page - 1 }}">newer</a>
+    {% endif %}
+  </p>
+{% endif %}

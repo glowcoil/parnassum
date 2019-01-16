@@ -62,6 +62,8 @@ struct App {
     rand: ring::rand::SystemRandom,
 }
 
+const LOGS_PER_PAGE: u32 = 25;
+
 impl App {
     fn new() -> App {
         App {
@@ -129,26 +131,37 @@ impl App {
                     leaderboard
                 };
 
-                let worklogs = {
-                    let db = self.db.lock().unwrap();
-
-                    let mut stmt = db.prepare("SELECT users.id, users.name, IFNULL(users.icon, 'default.png'), date(users.created), text, link FROM worklogs INNER JOIN users ON worklogs.user_id = users.id ORDER BY worklogs.created DESC").unwrap();
-                    let mut rows = stmt.query_map(NO_PARAMS, |row|
-                        Worklog {
-                            user: Profile { id: row.get(0), name: row.get(1), icon: row.get(2), created: row.get(3) },
-                            text: row.get(4),
-                            link: row.get(5),
-                        }).unwrap();
-                    let mut worklogs: Vec<Worklog> = Vec::new();
-                    for row in rows {
-                        worklogs.push(row?);
-                    }
-                    worklogs
-                };
+                let worklogs = self.get_worklogs(0)?;
 
                 context.insert("leaderboard", &leaderboard);
                 context.insert("worklogs", &worklogs);
+
+                context.insert("page", &0);
+                if worklogs.len() as u32 == LOGS_PER_PAGE && self.worklogs_count()? > LOGS_PER_PAGE {
+                    context.insert("older", &true);
+                }
+
                 Ok(Response::html(self.tera.render("index.html", &context)?))
+            },
+
+            (GET) (/worklogs/{page: u32}) => {
+                let mut context = Context::new();
+                if let Some(user) = self.verify_session(&request)? {
+                    context.insert("user", &user);
+                }
+
+                let worklogs = self.get_worklogs(page)?;
+                context.insert("worklogs", &worklogs);
+
+                context.insert("page", &page);
+                if worklogs.len() as u32 == LOGS_PER_PAGE && self.worklogs_count()? > (page + 1) * LOGS_PER_PAGE {
+                    context.insert("older", &true);
+                }
+                if page > 0 {
+                    context.insert("newer", &true);
+                }
+
+                Ok(Response::html(self.tera.render("worklogs.html", &context)?))
             },
 
             (GET) (/user/{name: String}) => {
@@ -540,6 +553,39 @@ impl App {
         let mut context = Context::new();
         context.insert("message", message);
         Response::html(self.tera.render(template, &context).unwrap())
+    }
+
+    fn get_worklogs(&self, page: u32) -> Result<Vec<Worklog>, Box<dyn Error>> {
+        let db = self.db.lock().unwrap();
+
+        let mut stmt = db.prepare(&format!("
+        SELECT
+            users.id,
+            users.name,
+            IFNULL(users.icon, 'default.png'),
+            date(users.created),
+            text,
+            link
+        FROM worklogs INNER JOIN users ON worklogs.user_id = users.id
+        ORDER BY worklogs.created DESC
+        LIMIT (?), {}", LOGS_PER_PAGE)).unwrap();
+        let rows = stmt.query_map(&[&(page * LOGS_PER_PAGE)], |row|
+            Worklog {
+                user: Profile { id: row.get(0), name: row.get(1), icon: row.get(2), created: row.get(3) },
+                text: row.get(4),
+                link: row.get(5),
+            }).unwrap();
+        let mut worklogs: Vec<Worklog> = Vec::new();
+        for row in rows {
+            worklogs.push(row?);
+        }
+
+        Ok(worklogs)
+    }
+
+    fn worklogs_count(&self) -> Result<u32, Box<dyn Error>> {
+        let db = self.db.lock().unwrap();
+        Ok(db.query_row("SELECT COUNT(*) FROM worklogs", NO_PARAMS, |row| row.get(0))?)
     }
 }
 
