@@ -52,8 +52,9 @@ struct Profile {
 #[derive(Serialize)]
 struct LeaderboardEntry {
     user: Profile,
+    total: u32,
     streak: u32,
-    current: bool,
+    latest: u32,
 }
 
 struct App {
@@ -89,6 +90,13 @@ impl App {
                            users.name,
                            IFNULL(users.icon, 'default.png'),
                            users.created,
+
+                           (SELECT count(*) FROM (SELECT CAST(julianday(worklogs.created) / 7 AS INTEGER) as week
+                               FROM worklogs
+                               WHERE worklogs.user_id = users.id
+                               GROUP BY week))
+                           AS total,
+
                            1 + CAST(julianday() / 7 AS INTEGER) -
                                (SELECT MAX(CAST(julianday(worklogs.created) / 7 AS INTEGER))
                                 FROM worklogs
@@ -100,28 +108,22 @@ impl App {
                                            = CAST(julianday(w2.created) / 7 AS INTEGER))
                                     = 0)
                            AS streak,
-                           (SELECT count(*)
+
+                           (SELECT CAST(julianday() / 7 AS INTEGER) -
+                                   max(CAST(julianday(worklogs.created) / 7 AS INTEGER))
                                FROM worklogs
-                               WHERE worklogs.user_id = users.id AND
-                                     CAST(julianday(worklogs.created) / 7 AS INTEGER)
-                                     = CAST(julianday() / 7 AS INTEGER))
-                              > 0 AS this_week,
-                           (SELECT count(*)
-                               FROM worklogs
-                               WHERE worklogs.user_id = users.id AND
-                                     CAST(julianday(worklogs.created) / 7 AS INTEGER)
-                                     = CAST(julianday() / 7 AS INTEGER) - 1)
-                              > 0 AS last_week
+                               WHERE worklogs.user_id = users.id)
+                           AS latest
+
                     FROM users
-                    WHERE this_week OR last_week
-                    ORDER BY this_week DESC, streak DESC").unwrap();
+                    WHERE total > 0 AND streak IS NOT NULL AND latest IS NOT NULL
+                    ORDER BY total DESC").unwrap();
                     let mut rows = stmt.query_map(NO_PARAMS, |row| {
-                        let current: bool = row.get(5);
-                        let streak: u32 = row.get(4);
                         LeaderboardEntry {
                             user: Profile { id: row.get(0), name: row.get(1), icon: row.get(2), created: row.get(3) },
-                            streak: if current { streak } else { streak - 1 },
-                            current: current,
+                            total: row.get(4),
+                            streak: row.get(5),
+                            latest: row.get(6),
                         }
                     })?;
                     let mut leaderboard: Vec<LeaderboardEntry> = Vec::new();

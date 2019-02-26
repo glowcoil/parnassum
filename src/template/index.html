@@ -5,16 +5,27 @@
 
   <div id="content">
     <div class="column">
-      <h4>leaderboard</h4>
       <table class="board">
+        <tr>
+          <td colspan="2"><h4>leaderboard</h4></td>
+          <td class="shrink count">weeks</td>
+          <td class="shrink streak">streak</td>
+        </tr>
         {% for entry in leaderboard %}
           {% if loop.index % 2 == 0 %}<tr class="even">{% else %}<tr class="odd">{% endif %}
             <td class="shrink"><img width="16px" height="16px" src="/static/icon/{{ entry.user.icon }}"/></td>
-            <td class="expand"><a href="/user/{{ entry.user.name }}">{{ entry.user.name }}</a></td>
-            <td class="shrink">
-              {% if entry.current %}<div class="current">{% else %}<div class="lapsing">{% endif %}
-                {{ entry.streak }} {% if entry.streak == 1 %}week{% else %}weeks{%endif%}
-              </div>
+            <td class="name"><a href="/user/{{ entry.user.name }}">{{ entry.user.name }}</a></td>
+            <td class="shrink count">{{ entry.total }}</td>
+            <td class="shrink streak">
+              {% if entry.latest == 0 or entry.latest == 1 %}
+                {% if entry.latest == 0 %}
+                  <div class="current">
+                {% elif entry.latest == 1 %}
+                  <div class="lapsing">
+                {% endif %}
+                  {{ entry.streak }} {% if entry.streak == 1 %}week{% else %}weeks{%endif%}
+                </div>
+              {% endif %}
             </td>
         {% endfor %}
       </table>

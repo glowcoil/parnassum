@@ -111,6 +111,20 @@ td.expand {
     width: 99%;
 }
 
+td.name {
+    width: 80%;
+}
+
+td.count {
+    width: 10%;
+    text-align: right;
+}
+
+td.streak {
+    width: 10%;
+    text-align: right;
+}
+
 input.worklog, input.link {
     width: 100%;
 }
