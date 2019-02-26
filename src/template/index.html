@@ -8,8 +8,8 @@
       <table class="board">
         <tr>
           <td colspan="2"><h4>leaderboard</h4></td>
-          <td class="shrink header">streak</td>
-          <td class="shrink header">total</td>
+          <td class="shrink streak">streak</td>
+          <td class="shrink count">total</td>
         </tr>
         {% for entry in leaderboard %}
           {% if loop.index % 2 == 0 %}<tr class="even">{% else %}<tr class="odd">{% endif %}

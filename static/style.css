@@ -115,12 +115,12 @@ td.name {
     width: 80%;
 }
 
-td.count {
+td.streak {
     width: 10%;
-    text-align: right;
+    text-align: center;
 }
 
-td.streak {
+td.count {
     width: 10%;
     text-align: right;
 }
