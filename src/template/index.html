@@ -8,8 +8,8 @@
       <table class="board">
         <tr>
           <td colspan="2"><h4>leaderboard</h4></td>
-          <td class="shrink count">streak</td>
-          <td class="shrink streak">weeks</td>
+          <td class="shrink streak">streak</td>
+          <td class="shrink count">weeks</td>
         </tr>
         {% for entry in leaderboard %}
           {% if loop.index % 2 == 0 %}<tr class="even">{% else %}<tr class="odd">{% endif %}
@@ -22,7 +22,7 @@
                 {% elif entry.latest == 1 %}
                   <div class="lapsing">
                 {% endif %}
-                  {{ entry.streak }} {% if entry.streak == 1 %}week{% else %}weeks{%endif%}
+                  {{ entry.streak }}
                 </div>
               {% endif %}
             </td>
