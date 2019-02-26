@@ -125,6 +125,10 @@ td.streak {
     text-align: right;
 }
 
+td.header {
+    text-align: right;
+}
+
 input.worklog, input.link {
     width: 100%;
 }
