@@ -172,3 +172,8 @@ div.lapsing {
 .newer {
     float: right;
 }
+
+div#countdown {
+    text-align: center;
+    margin-bottom: 50px;
+}

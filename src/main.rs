@@ -135,8 +135,28 @@ impl App {
 
                 let worklogs = self.get_worklogs(0)?;
 
+                let countdown = {
+                    let db = self.db.lock().unwrap();
+
+                    db.query_row(
+                        "SELECT CAST(CAST(CAST(julianday() / 7 AS INTEGER) + 1 AS FLOAT) * 7 - julianday() AS INTEGER) as days,
+                                CAST((CAST(CAST(julianday() / 7 AS INTEGER) + 1 AS FLOAT) * 7 - julianday())  * 24 AS INTEGER) % 24 as hours,
+                                CAST((CAST(CAST(julianday() / 7 AS INTEGER) + 1 AS FLOAT) * 7 - julianday())  * 1440 AS INTEGER) % 60 as minutes,
+                                CAST((CAST(CAST(julianday() / 7 AS INTEGER) + 1 AS FLOAT) * 7 - julianday())  * 86400 AS INTEGER) % 60 as seconds",
+                        NO_PARAMS,
+                        |row| {
+                            let d: u32 = row.get(0);
+                            let h: u32 = row.get(1);
+                            let m: u32 = row.get(2);
+                            let s: u32 = row.get(3);
+                            format!("{:02}:{:02}:{:02}:{:02}", d, h, m, s)
+                        })?
+                };
+
                 context.insert("leaderboard", &leaderboard);
                 context.insert("worklogs", &worklogs);
+
+                context.insert("countdown", &countdown);
 
                 context.insert("page", &0);
                 if worklogs.len() as u32 == LOGS_PER_PAGE && self.worklogs_count()? > LOGS_PER_PAGE {
